@@ -40,7 +40,7 @@ class FeedViewModel: ObservableObject {
                 Query.limit(50)
             ]
             
-            let result = try await appWrite.databases.listDocuments(
+            let result = try await appWrite.database.listDocuments(
                 databaseId: AppWriteConstants.databaseId,
                 collectionId: AppWriteConstants.Collections.videos,
                 queries: queries
@@ -62,38 +62,32 @@ class FeedViewModel: ObservableObject {
     func likeVideo(_ video: Video) async {
         guard let currentUser = try? await appWrite.account.get() else { return }
         
-        do {
-            // Create a like document
-            let likeData: [String: Any] = [
-                "userId": currentUser.$id,
-                "videoId": video.id,
-                "createdAt": Date().timeIntervalSince1970
-            ]
-            
-            try await appWrite.databases.createDocument(
-                databaseId: AppWriteConstants.databaseId,
-                collectionId: AppWriteConstants.Collections.likes,
-                documentId: ID.unique(),
-                data: likeData
-            )
-            
-            // Update video likes count
-            let updatedData: [String: Any] = [
-                "likes": video.likes + 1
-            ]
-            
-            try await appWrite.databases.updateDocument(
-                databaseId: AppWriteConstants.databaseId,
-                collectionId: AppWriteConstants.Collections.videos,
-                documentId: video.id,
-                data: updatedData
-            )
-            
-            // Refresh videos
-            await fetchVideos()
-        } catch {
-            print("Error liking video: \(error.localizedDescription)")
-        }
+        // Create a like document
+        let likeData: [String: Any] = [
+            "userId": currentUser.id,
+            "videoId": video.id,
+            "createdAt": Date().timeIntervalSince1970
+        ]
+        _ = try? await appWrite.database.createDocument(
+            databaseId: AppWriteConstants.databaseId,
+            collectionId: AppWriteConstants.Collections.likes,
+            documentId: ID.unique(),
+            data: likeData
+        )
+        
+        // Update video likes count
+        let updatedData: [String: Any] = [
+            "likes": video.likes + 1
+        ]
+        _ = try? await appWrite.database.updateDocument(
+            databaseId: AppWriteConstants.databaseId,
+            collectionId: AppWriteConstants.Collections.videos,
+            documentId: video.id,
+            data: updatedData
+        )
+        
+        // Refresh videos
+        await fetchVideos()
     }
 }
 
@@ -194,4 +188,3 @@ struct VideoCell: View {
         .shadow(radius: 2)
     }
 }
-

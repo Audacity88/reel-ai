@@ -8,7 +8,7 @@ class ProfileViewModel: ObservableObject {
     @Published var error: Error?
     
     private let appWrite = AppWriteManager.shared
-    
+@MainActor
     func loadProfile(userId: String? = nil) async {
         isLoading = true
         defer { isLoading = false }
@@ -21,8 +21,11 @@ class ProfileViewModel: ObservableObject {
                     collectionId: AppWriteConstants.Collections.users,
                     documentId: userId
                 )
-                await MainActor.run {
-                    self.userProfile = try? JSONDecoder().decode(UserProfile.self, from: document.data)
+                if let data = try? JSONSerialization.data(withJSONObject: document.data),
+                   let profile = try? JSONDecoder().decode(UserProfile.self, from: data) {
+                    await MainActor.run {
+                        self.userProfile = profile
+                    }
                 }
             } else {
                 // Load current user's profile
@@ -30,10 +33,13 @@ class ProfileViewModel: ObservableObject {
                 let document = try await appWrite.getDocument(
                     databaseId: AppWriteConstants.databaseId,
                     collectionId: AppWriteConstants.Collections.users,
-                    documentId: currentUser.$id
+                    documentId: currentUser.id
                 )
-                await MainActor.run {
-                    self.userProfile = try? JSONDecoder().decode(UserProfile.self, from: document.data)
+                if let data = try? JSONSerialization.data(withJSONObject: document.data),
+                   let profile = try? JSONDecoder().decode(UserProfile.self, from: data) {
+                    await MainActor.run {
+                        self.userProfile = profile
+                    }
                 }
             }
             
@@ -64,7 +70,10 @@ class ProfileViewModel: ObservableObject {
             
             await MainActor.run {
                 self.userPosts = result.documents.compactMap { document in
-                    try? JSONDecoder().decode(Post.self, from: document.data)
+                    if let data = try? JSONSerialization.data(withJSONObject: document.data) {
+                        return try? JSONDecoder().decode(Post.self, from: data)
+                    }
+                    return nil
                 }
             }
         } catch {
@@ -82,33 +91,33 @@ class ProfileViewModel: ObservableObject {
             ]
             
             try await appWrite.updateDocument(
-                databaseId: AppWriteConstants.databaseId,
-                collectionId: AppWriteConstants.Collections.users,
-                documentId: userId,
-                data: updatedData
-            )
-            
-            await loadProfile()
-        } catch {
-            print("Error updating profile: \(error.localizedDescription)")
-        }
-    }
+        func uploadAvatar(_ imageData: Data) async {
+    guard let userId = userProfile?.id else { return }
     
-    func uploadAvatar(_ imageData: Data) async {
-        guard let userId = userProfile?.id else { return }
+    do {
+        let file = InputFile(withData: imageData, filename: "avatar.jpg")
+        let uploadedFile = try await appWrite.uploadFile(
+            bucketId: AppWriteConstants.storageBucketId,
+            fileId: ID.unique(),
+            file: file
+        )
         
-        do {
-            let file = InputFile(data: imageData, filename: "avatar.jpg")
-            let uploadedFile = try await appWrite.uploadFile(
-                bucketId: AppWriteConstants.storageBucketId,
-                fileId: ID.unique(),
-                file: file
-            )
-            
-            let updatedData: [String: Any] = [
-                "avatarUrl": uploadedFile.url
-            ]
-            
+        let updatedData: [String: Any] = [
+            "avatarUrl": uploadedFile.url
+        ]
+        
+        _ = try await appWrite.updateDocument(
+            databaseId: AppWriteConstants.databaseId,
+            collectionId: AppWriteConstants.Collections.users,
+            documentId: userId,
+            data: updatedData
+        )
+        
+        await loadProfile()
+    } catch {
+        print("Error updating profile: \(error.localizedDescription)")
+    }
+}
             try await appWrite.updateDocument(
                 databaseId: AppWriteConstants.databaseId,
                 collectionId: AppWriteConstants.Collections.users,
@@ -127,12 +136,12 @@ class ProfileViewModel: ObservableObject {
         do {
             // Create follow relationship
             let followData: [String: Any] = [
-                "followerId": currentUser.$id,
+                "followerId": currentUser.id,
                 "followingId": targetUserId,
                 "createdAt": Date().timeIntervalSince1970
             ]
             
-            try await appWrite.createDocument(
+            _ = try await appWrite.createDocument(
                 databaseId: AppWriteConstants.databaseId,
                 collectionId: "follows",
                 documentId: ID.unique(),
@@ -144,7 +153,7 @@ class ProfileViewModel: ObservableObject {
                 "followers": (userProfile?.followers ?? 0) + 1
             ]
             
-            try await appWrite.updateDocument(
+            _ = try await appWrite.updateDocument(
                 databaseId: AppWriteConstants.databaseId,
                 collectionId: AppWriteConstants.Collections.users,
                 documentId: targetUserId,

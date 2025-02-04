@@ -25,7 +25,7 @@ class MetricsViewModel: ObservableObject {
             let userDoc = try await appWrite.getDocument(
                 databaseId: AppWriteConstants.databaseId,
                 collectionId: AppWriteConstants.Collections.users,
-                documentId: currentUser.$id
+                documentId: currentUser.id
             )
             
             if let userProfile = try? JSONDecoder().decode(UserProfile.self, from: userDoc.data) {
@@ -36,7 +36,7 @@ class MetricsViewModel: ObservableObject {
             
             // Fetch posts for views and likes
             let postsQueries = [
-                AppWriteConstants.Queries.equalTo(field: "userId", value: currentUser.$id),
+                AppWriteConstants.Queries.equalTo(field: "followingId", value: currentUser.id),
                 AppWriteConstants.Queries.orderByCreatedAt()
             ]
             
@@ -104,9 +104,11 @@ class MetricsViewModel: ObservableObject {
             let sortedFollowersData = followersByDate.map { (date: $0.key, count: $0.value) }
                 .sorted { $0.date < $1.date }
             
+            let computedTotalViews = totalViews
+            let computedTotalLikes = totalLikes
             await MainActor.run {
-                self.totalViews = totalViews
-                self.totalLikes = totalLikes
+                self.totalViews = computedTotalViews
+                self.totalLikes = computedTotalLikes
                 self.viewsData = sortedViewsData
                 self.likesData = sortedLikesData
                 self.followersData = sortedFollowersData
@@ -252,4 +254,3 @@ struct MetricChartView: View {
 #Preview {
     CreatorMetricsView()
 }
-

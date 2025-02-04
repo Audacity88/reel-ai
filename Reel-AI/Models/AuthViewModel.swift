@@ -1,13 +1,18 @@
 import SwiftUI
 import Appwrite
+import AnyCodable
 
 class AuthViewModel: ObservableObject {
     @Published var userSession: Session?
-    @Published var currentUser: User?
+    @Published var currentUser: AppwriteModels.User<AnyCodable>?
     @Published var isLoading = false
     @Published var error: Error?
     
     private let appWrite = AppWriteManager.shared
+    
+    var isAuthenticated: Bool {
+        return userSession != nil
+    }
     
     init() {
         Task {
@@ -17,11 +22,8 @@ class AuthViewModel: ObservableObject {
     
     @MainActor
     func loadCurrentUser() async {
-        do {
-            currentUser = try await appWrite.getCurrentUser()
-        } catch {
-            self.error = error
-            print("DEBUG: Failed to get current user: \(error.localizedDescription)")
+        if let user = try? await appWrite.getCurrentUser() {
+            currentUser = user
         }
     }
     
@@ -29,7 +31,6 @@ class AuthViewModel: ObservableObject {
     func signIn(withEmail email: String, password: String) async throws {
         isLoading = true
         defer { isLoading = false }
-        
         do {
             userSession = try await appWrite.signIn(email: email, password: password)
             await loadCurrentUser()
@@ -43,7 +44,6 @@ class AuthViewModel: ObservableObject {
     func createUser(withEmail email: String, password: String, username: String) async throws {
         isLoading = true
         defer { isLoading = false }
-        
         do {
             // Create the user account
             let user = try await appWrite.signUp(email: email, password: password)
@@ -56,13 +56,13 @@ class AuthViewModel: ObservableObject {
                 "email": email,
                 "username": username,
                 "createdAt": Date().timeIntervalSince1970,
-                "userId": user.$id
+                "userId": user.id
             ]
             
             try await appWrite.createDocument(
                 databaseId: "YOUR_DATABASE_ID",
                 collectionId: "users",
-                documentId: user.$id,
+                documentId: user.id,
                 data: userData
             )
             
@@ -78,7 +78,7 @@ class AuthViewModel: ObservableObject {
         do {
             try await appWrite.signOut()
             self.userSession = nil
-            self.currentUser = nil
+            self.currentUser = nil as AppwriteModels.User<AnyCodable>?
         } catch {
             self.error = error
             throw error

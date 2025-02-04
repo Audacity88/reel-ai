@@ -32,7 +32,7 @@ public class AppWriteManager: ObservableObject {
     
     // MARK: - Authentication
     
-    func signUp(email: String, password: String) async throws -> Account.User {
+    func signUp(email: String, password: String) async throws -> AppwriteModels.User<AnyCodable> {
         return try await account.create(
             userId: ID.unique(),
             email: email,
@@ -49,10 +49,10 @@ public class AppWriteManager: ObservableObject {
     
     func signOut() async throws {
         let session = try await account.getSession(sessionId: "current")
-        try await account.deleteSession(sessionId: session.$id)
+        try await account.deleteSession(sessionId: session.id)
     }
     
-    func getCurrentUser() async throws -> User {
+    func getCurrentUser() async throws -> AppwriteModels.User<AnyCodable> {
         return try await account.get()
     }
     
@@ -130,7 +130,7 @@ public class AppWriteManager: ObservableObject {
         bucketId: String,
         fileId: String,
         file: InputFile
-    ) async throws -> Storage.File {
+    ) async throws -> AppwriteModels.File {
         return try await storage.createFile(
             bucketId: bucketId,
             fileId: fileId,
@@ -141,7 +141,7 @@ public class AppWriteManager: ObservableObject {
     func getFile(
         bucketId: String,
         fileId: String
-    ) async throws -> Storage.File {
+    ) async throws -> AppwriteModels.File {
         return try await storage.getFile(
             bucketId: bucketId,
             fileId: fileId
@@ -183,10 +183,14 @@ public class AppWriteManager: ObservableObject {
     
     func subscribe(
         channel: String,
-        callback: @escaping (RealtimeMessage) -> Void
+        callback: @escaping (Any) -> Void
     ) -> RealtimeSubscription {
         return realtime.subscribe([channel]) { message in
-            callback(message)
+            callback(message.payload)
         }
     }
-} 
+    
+    public func getFilePreview(bucketId: String, fileId: String) -> URL {
+        return URL(string: "\(endpoint)/storage/buckets/\(bucketId)/files/\(fileId)/preview")!
+    }
+}

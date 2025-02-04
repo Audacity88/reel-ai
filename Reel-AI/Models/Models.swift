@@ -26,8 +26,8 @@ struct UserProfile: Codable, Identifiable {
     }
 }
 
-// MARK: - Post
-struct Post: Codable, Identifiable {
+// MARK: - Video Post
+struct VideoPost: Codable, Identifiable {
     let id: String
     let userId: String
     let caption: String
@@ -117,12 +117,17 @@ struct AppWriteConstants {
     static let databaseId = "YOUR_DATABASE_ID"
     static let storageBucketId = "YOUR_STORAGE_BUCKET_ID"
     
+    struct Buckets {
+        static let thumbnails = "YOUR_THUMBNAIL_BUCKET_ID"
+    }
+    
     struct Collections {
         static let users = "users"
         static let posts = "posts"
         static let comments = "comments"
         static let likes = "likes"
         static let notifications = "notifications"
+        static let videos = "videos"
     }
     
     struct Queries {

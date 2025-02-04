@@ -16,6 +16,7 @@ You are an expert iOS developer using Swift and SwiftUI. Follow these guidelines
 #Crucial Notes
 -I am using SPM for dependencies
 -I am using SweetPad which is a VSCode/Cursor integrator that replaces many XCode functions for building, so if possible avoid requiring using XCode itself
+-Do not create Package.swift
 -AppWrite for auth
 -Build command:  xcodebuild clean build -scheme Reel-AI -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' ONLY_ACTIVE_ARCH=YES
 

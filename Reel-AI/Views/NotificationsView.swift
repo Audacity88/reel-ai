@@ -1,15 +1,14 @@
 import SwiftUI
 import Appwrite
+import AppwriteModels
+import AnyCodable
 
-struct AppNotification: Identifiable {
-    let id: String
-    let title: String
-    let body: String
-    let timestamp: Date
-}
+// Use the AppNotificationModel defined in Models.swift
+// If needed, import Models here if AppNotificationModel is declared there
+// import Models
 
 class NotificationsViewModel: ObservableObject {
-    @Published var notifications: [AppNotification] = []
+    @Published var notifications: [AppNotificationModel] = []
     @Published var isLoading = false
     @Published var error: Error?
     
@@ -20,10 +19,10 @@ class NotificationsViewModel: ObservableObject {
         defer { isLoading = false }
         
         do {
-            guard let currentUser = try await appWrite.getCurrentUser() else { return }
+            let currentUser = try await appWrite.getCurrentUser()
             
             let queries = [
-                AppWriteConstants.Queries.equalTo(field: "userId", value: currentUser.$id),
+                AppWriteConstants.Queries.equalTo(field: "userId", value: currentUser.id),
                 AppWriteConstants.Queries.orderByCreatedAt(),
                 AppWriteConstants.Queries.limit(50)
             ]
@@ -36,7 +35,10 @@ class NotificationsViewModel: ObservableObject {
             
             await MainActor.run {
                 self.notifications = result.documents.compactMap { document in
-                    try? JSONDecoder().decode(AppNotification.self, from: document.data)
+                    if let jsonData = try? JSONSerialization.data(withJSONObject: document.data, options: []) {
+                        return try? JSONDecoder().decode(AppNotificationModel.self, from: jsonData)
+                    }
+                    return nil
                 }
             }
         } catch {
@@ -47,13 +49,13 @@ class NotificationsViewModel: ObservableObject {
         }
     }
     
-    func markAsRead(_ notification: AppNotification) async {
+    func markAsRead(_ notification: AppNotificationModel) async {
         do {
             let updatedData: [String: Any] = [
                 "read": true
             ]
             
-            try await appWrite.updateDocument(
+            _ = try await appWrite.updateDocument(
                 databaseId: AppWriteConstants.databaseId,
                 collectionId: AppWriteConstants.Collections.notifications,
                 documentId: notification.id,
@@ -101,19 +103,54 @@ struct NotificationsView: View {
 }
 
 struct NotificationCell: View {
-    let notification: AppNotification
+    let notification: AppNotificationModel
+    
+    private var iconName: String {
+        switch notification.type {
+        case .like:
+            return "heart.fill"
+        case .comment:
+            return "message.fill"
+        case .follow:
+            return "person.fill"
+        case .mention:
+            return "at"
+        case .system:
+            return "bell.fill"
+        }
+    }
+    
+    private var iconColor: Color {
+        switch notification.type {
+        case .like:
+            return .red
+        case .comment:
+            return .blue
+        case .follow:
+            return .green
+        case .mention:
+            return .purple
+        case .system:
+            return .orange
+        }
+    }
+    
+    private var timeAgo: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: Date(timeIntervalSince1970: notification.createdAt), relativeTo: Date())
+    }
     
     var body: some View {
         HStack {
-            // Icon based on notification type
             Image(systemName: iconName)
                 .foregroundColor(iconColor)
                 .font(.title2)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(notification.title)
+                Text(notification.type.rawValue.capitalized)
                     .font(.headline)
-                Text(notification.body)
+                Text("Target: \(notification.targetId)")
                     .font(.subheadline)
                     .foregroundColor(.gray)
                 Text(timeAgo)
@@ -131,36 +168,10 @@ struct NotificationCell: View {
         }
         .padding(.vertical, 8)
     }
-    
-    private var iconName: String {
-        switch notification.type {
-        case .like:
-            return "heart.fill"
-        case .comment:
-            return "message.fill"
-        case .follow:
-            return "person.fill"
-        case .mention:
-            return "at"
-        }
-    }
-    
-    private var iconColor: Color {
-        switch notification.type {
-        case .like:
-            return .red
-        case .comment:
-            return .blue
-        case .follow:
-            return .green
-        case .mention:
-            return .purple
-        }
-    }
-    
-    private var timeAgo: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: Date(timeIntervalSince1970: notification.createdAt), relativeTo: Date())
+}
+
+struct NotificationsView_Previews: PreviewProvider {
+    static var previews: some View {
+        NotificationsView()
     }
 }

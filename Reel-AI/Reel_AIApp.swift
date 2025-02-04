@@ -1,7 +1,7 @@
 import SwiftUI
 import Appwrite
 
-@main
+ 
 struct Reel_AIApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var authViewModel = AuthViewModel()
