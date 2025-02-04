@@ -6,6 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3714E87F2D518A36003BD16C /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 373845542D5183E5006F4CF7 /* FirebaseAppCheck */; };
+		3714E8802D518A36003BD16C /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 373845562D5183E5006F4CF7 /* FirebaseAuth */; };
+		3714E8812D518A36003BD16C /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 373845582D5183E5006F4CF7 /* FirebaseCore */; };
+		3714E8822D518A36003BD16C /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 3738455A2D5183E5006F4CF7 /* FirebaseFirestore */; };
+		3714E8832D518A36003BD16C /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 3738455C2D5183E5006F4CF7 /* FirebaseMessaging */; };
+		3714E8842D518A36003BD16C /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 37D1536A2D51862B0024DBC0 /* FirebaseFunctions */; };
+		3738454F2D51836D006F4CF7 /* GTMSessionFetcher in Frameworks */ = {isa = PBXBuildFile; productRef = 3738454E2D51836D006F4CF7 /* GTMSessionFetcher */; };
+		373845522D51839D006F4CF7 /* RecaptchaInterop in Frameworks */ = {isa = PBXBuildFile; productRef = 373845512D51839D006F4CF7 /* RecaptchaInterop */; };
+		379406212D516F9400712406 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 379406202D516F9400712406 /* Charts.framework */; };
+		37AE7DD22D51856200227184 /* GTMSessionFetcherCore in Frameworks */ = {isa = PBXBuildFile; productRef = 37AE7DD12D51856200227184 /* GTMSessionFetcherCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		379405262D5147AB00712406 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -23,10 +36,24 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		37D549002D51877C00014D66 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		379405132D5147A800712406 /* Reel-AI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Reel-AI.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		379405252D5147AB00712406 /* Reel-AITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Reel-AITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3794052F2D5147AB00712406 /* Reel-AIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Reel-AIUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		379406202D516F9400712406 /* Charts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Charts.framework; path = System/Library/Frameworks/Charts.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +79,16 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3714E8842D518A36003BD16C /* FirebaseFunctions in Frameworks */,
+				3714E8832D518A36003BD16C /* FirebaseMessaging in Frameworks */,
+				3714E8822D518A36003BD16C /* FirebaseFirestore in Frameworks */,
+				3714E8812D518A36003BD16C /* FirebaseCore in Frameworks */,
+				3714E8802D518A36003BD16C /* FirebaseAuth in Frameworks */,
+				3714E87F2D518A36003BD16C /* FirebaseAppCheck in Frameworks */,
+				373845522D51839D006F4CF7 /* RecaptchaInterop in Frameworks */,
+				3738454F2D51836D006F4CF7 /* GTMSessionFetcher in Frameworks */,
+				37AE7DD22D51856200227184 /* GTMSessionFetcherCore in Frameworks */,
+				379406212D516F9400712406 /* Charts.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +115,7 @@
 				379405152D5147A800712406 /* Reel-AI */,
 				379405282D5147AB00712406 /* Reel-AITests */,
 				379405322D5147AB00712406 /* Reel-AIUITests */,
+				3794061D2D516F8900712406 /* Frameworks */,
 				379405142D5147A800712406 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -92,6 +130,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		3794061D2D516F8900712406 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				379406202D516F9400712406 /* Charts.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -102,6 +148,7 @@
 				3794050F2D5147A800712406 /* Sources */,
 				379405102D5147A800712406 /* Frameworks */,
 				379405112D5147A800712406 /* Resources */,
+				37D549002D51877C00014D66 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -112,6 +159,15 @@
 			);
 			name = "Reel-AI";
 			packageProductDependencies = (
+				3738454E2D51836D006F4CF7 /* GTMSessionFetcher */,
+				373845512D51839D006F4CF7 /* RecaptchaInterop */,
+				373845542D5183E5006F4CF7 /* FirebaseAppCheck */,
+				373845562D5183E5006F4CF7 /* FirebaseAuth */,
+				373845582D5183E5006F4CF7 /* FirebaseCore */,
+				3738455A2D5183E5006F4CF7 /* FirebaseFirestore */,
+				3738455C2D5183E5006F4CF7 /* FirebaseMessaging */,
+				37AE7DD12D51856200227184 /* GTMSessionFetcherCore */,
+				37D1536A2D51862B0024DBC0 /* FirebaseFunctions */,
 			);
 			productName = "Reel-AI";
 			productReference = 379405132D5147A800712406 /* Reel-AI.app */;
@@ -195,6 +251,11 @@
 			);
 			mainGroup = 3794050A2D5147A800712406;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3738454D2D51836D006F4CF7 /* XCRemoteSwiftPackageReference "gtm-session-fetcher" */,
+				373845502D51839D006F4CF7 /* XCRemoteSwiftPackageReference "interop-ios-for-google-sdks" */,
+				373845532D5183E5006F4CF7 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 379405142D5147A800712406 /* Products */;
 			projectDirPath = "";
@@ -274,6 +335,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -326,6 +388,10 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = (
+					"-all_load",
+					"-ObjC",
+				);
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -337,6 +403,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -382,6 +449,10 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				OTHER_LDFLAGS = (
+					"-all_load",
+					"-ObjC",
+				);
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
@@ -393,9 +464,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Reel-AI/Preview Content\"";
+				DEVELOPMENT_TEAM = JAAQKRTXQ6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -408,6 +481,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = "gauntletai.Reel-AI";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -421,9 +495,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Reel-AI/Preview Content\"";
+				DEVELOPMENT_TEAM = JAAQKRTXQ6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -436,6 +512,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = "gauntletai.Reel-AI";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -552,6 +629,81 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3738454D2D51836D006F4CF7 /* XCRemoteSwiftPackageReference "gtm-session-fetcher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/gtm-session-fetcher.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		373845502D51839D006F4CF7 /* XCRemoteSwiftPackageReference "interop-ios-for-google-sdks" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/interop-ios-for-google-sdks.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 100.0.0;
+			};
+		};
+		373845532D5183E5006F4CF7 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3738454E2D51836D006F4CF7 /* GTMSessionFetcher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3738454D2D51836D006F4CF7 /* XCRemoteSwiftPackageReference "gtm-session-fetcher" */;
+			productName = GTMSessionFetcher;
+		};
+		373845512D51839D006F4CF7 /* RecaptchaInterop */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 373845502D51839D006F4CF7 /* XCRemoteSwiftPackageReference "interop-ios-for-google-sdks" */;
+			productName = RecaptchaInterop;
+		};
+		373845542D5183E5006F4CF7 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 373845532D5183E5006F4CF7 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+		373845562D5183E5006F4CF7 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 373845532D5183E5006F4CF7 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		373845582D5183E5006F4CF7 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 373845532D5183E5006F4CF7 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		3738455A2D5183E5006F4CF7 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 373845532D5183E5006F4CF7 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		3738455C2D5183E5006F4CF7 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 373845532D5183E5006F4CF7 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		37AE7DD12D51856200227184 /* GTMSessionFetcherCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3738454D2D51836D006F4CF7 /* XCRemoteSwiftPackageReference "gtm-session-fetcher" */;
+			productName = GTMSessionFetcherCore;
+		};
+		37D1536A2D51862B0024DBC0 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 373845532D5183E5006F4CF7 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3794050B2D5147A800712406 /* Project object */;
 }
