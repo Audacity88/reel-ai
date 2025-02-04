@@ -1,6 +1,6 @@
 import SwiftUI
 import Charts
-import AppWrite
+import Appwrite
 
 // MARK: - Data Models
 struct MetricData: Identifiable {

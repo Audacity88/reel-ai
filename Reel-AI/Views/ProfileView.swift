@@ -1,5 +1,5 @@
 import SwiftUI
-import AppWrite
+import Appwrite
 
 class ProfileViewModel: ObservableObject {
     @Published var userProfile: UserProfile?

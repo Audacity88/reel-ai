@@ -1,5 +1,5 @@
 import SwiftUI
-import AppWrite
+import Appwrite
 
 struct Notification: Identifiable {
     let id: String

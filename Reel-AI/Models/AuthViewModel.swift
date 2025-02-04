@@ -1,5 +1,5 @@
 import SwiftUI
-import AppWrite
+import Appwrite
 
 class AuthViewModel: ObservableObject {
     @Published var userSession: Session?

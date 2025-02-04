@@ -1,5 +1,5 @@
 import SwiftUI
-import AppWrite
+import Appwrite
 import AVKit
 import Charts
 

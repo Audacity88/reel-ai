@@ -1,5 +1,5 @@
 import SwiftUI
-import AppWrite
+import Appwrite
 
 @main
 struct Reel_AIApp: App {
@@ -10,7 +10,7 @@ struct Reel_AIApp: App {
         // Initialize AppWrite client
         let client = Client()
             .setEndpoint("YOUR_APPWRITE_ENDPOINT") // Replace with your AppWrite endpoint
-            .setProject("YOUR_PROJECT_ID")         // Replace with your project ID
+            .setProject("67a24702001e52a8b032")         // Replace with your project ID
             .setSelfSigned(true)                  // Remove in production
         
         // Initialize AppWrite manager

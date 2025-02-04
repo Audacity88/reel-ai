@@ -1,5 +1,5 @@
 import Foundation
-import AppWrite
+import Appwrite
 
 class AppWriteManager: ObservableObject {
     static let shared = AppWriteManager()

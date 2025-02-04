@@ -1,5 +1,5 @@
 import Foundation
-import AppWrite
+import Appwrite
 
 // MARK: - User Profile
 struct UserProfile: Codable, Identifiable {

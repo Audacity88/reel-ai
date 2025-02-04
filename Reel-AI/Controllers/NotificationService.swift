@@ -1,5 +1,5 @@
 import Foundation
-import AppWrite
+import Appwrite
 
 class NotificationService {
     static let shared = NotificationService()

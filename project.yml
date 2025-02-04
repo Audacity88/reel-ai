@@ -1,0 +1,26 @@
+name: Reel-AI
+options:
+  bundleIdPrefix: gauntletai
+  deploymentTarget:
+    iOS: 16.0
+packages:
+  Appwrite:
+    url: https://github.com/appwrite/sdk-for-apple
+    from: 4.0.0
+targets:
+  Reel-AI:
+    type: application
+    platform: iOS
+    sources:
+      - path: Reel-AI
+        excludes:
+          - "*.md"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: gauntletai.Reel-AI
+        DEVELOPMENT_TEAM: JAAQKRTXQ6
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: 1,2
+    dependencies:
+      - package: Appwrite
+        product: Appwrite 

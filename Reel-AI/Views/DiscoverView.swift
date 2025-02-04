@@ -1,5 +1,5 @@
 import SwiftUI
-import AppWrite
+import Appwrite
 
 struct TrendingPost: Identifiable, Codable {
     let id: String

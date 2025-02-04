@@ -16,13 +16,8 @@ You are an expert iOS developer using Swift and SwiftUI. Follow these guidelines
 #Crucial Notes
 -I am using SPM for dependencies
 -I am using SweetPad which is a VSCode/Cursor integrator that replaces many XCode functions for building, so if possible avoid requiring using XCode itself
--Firebase: DO NOT USE FirebaseFirestoreSwift! Check the documentation for the latest notes on @Firebase iOS. Starting with Firebase 10.17.0, the Swift extension SDKs (like FirebaseFirestoreSwift) have been merged into their main SDKs. Import FirebaseCore not Firebase.
--Firebase packages to include:
-FirebaseAnalytics (brings core dependencies)
-FirebaseAuth (for authentication)
-FirebaseFirestore (for database)
-FirebaseMessaging (for notifications)
-FirebaseFunctions (for Cloud Functions - needed by NotificationService)
+-AppWrite for auth
+-Build command:  xcodebuild clean build -scheme Reel-AI -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' ONLY_ACTIVE_ARCH=YES
 
 
 #SwiftUI UI Design Rules:

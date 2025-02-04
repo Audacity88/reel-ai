@@ -1,76 +1,98 @@
 import SwiftUI
-import AppWrite
+import Appwrite
+
+struct Video: Codable, Identifiable {
+    let id: String
+    let title: String
+    let caption: String
+    let authorId: String
+    let author: String
+    let videoFileId: String
+    let thumbnailFileId: String
+    let likes: Int
+    let comments: Int
+    let shares: Int
+    let createdAt: Double
+    
+    // Computed property for thumbnail URL
+    var thumbnailUrl: String {
+        return AppWriteManager.shared.getFilePreview(
+            bucketId: AppWriteConstants.Buckets.thumbnails,
+            fileId: thumbnailFileId
+        ).absoluteString
+    }
+}
 
 class FeedViewModel: ObservableObject {
-    @Published var posts: [Post] = []
+    @Published var videos: [Video] = []
     @Published var isLoading = false
     @Published var error: Error?
     
     private let appWrite = AppWriteManager.shared
     
-    func fetchPosts() async {
+    func fetchVideos() async {
         isLoading = true
         defer { isLoading = false }
         
         do {
             let queries = [
-                AppWriteConstants.Queries.orderByCreatedAt(),
-                AppWriteConstants.Queries.limit(50)
+                Query.orderDesc("createdAt"),
+                Query.limit(50)
             ]
             
-            let result = try await appWrite.listDocuments(
+            let result = try await appWrite.databases.listDocuments(
                 databaseId: AppWriteConstants.databaseId,
-                collectionId: AppWriteConstants.Collections.posts,
+                collectionId: AppWriteConstants.Collections.videos,
                 queries: queries
             )
             
             await MainActor.run {
-                self.posts = result.documents.compactMap { document in
-                    try? JSONDecoder().decode(Post.self, from: document.data)
+                self.videos = result.documents.compactMap { document in
+                    try? document.decode()
                 }
             }
         } catch {
             await MainActor.run {
                 self.error = error
-                print("Error fetching posts: \(error.localizedDescription)")
+                print("Error fetching videos: \(error.localizedDescription)")
             }
         }
     }
     
-    func likePost(_ post: Post) async {
-        guard let currentUser = try? await appWrite.getCurrentUser() else { return }
+    func likeVideo(_ video: Video) async {
+        guard let currentUser = try? await appWrite.account.get() else { return }
         
         do {
             // Create a like document
             let likeData: [String: Any] = [
                 "userId": currentUser.$id,
-                "postId": post.id,
+                "videoId": video.id,
                 "createdAt": Date().timeIntervalSince1970
             ]
             
-            try await appWrite.createDocument(
+            try await appWrite.databases.createDocument(
                 databaseId: AppWriteConstants.databaseId,
                 collectionId: AppWriteConstants.Collections.likes,
                 documentId: ID.unique(),
                 data: likeData
             )
             
-            // Update post likes count
+            // Update video likes count
             let updatedData: [String: Any] = [
-                "likes": post.likes + 1
+                "likes": video.likes + 1
             ]
             
-            try await appWrite.updateDocument(
+            try await appWrite.databases.updateDocument(
                 databaseId: AppWriteConstants.databaseId,
-                collectionId: AppWriteConstants.Collections.posts,
-                documentId: post.id,
+                collectionId: AppWriteConstants.Collections.videos,
+                documentId: video.id,
                 data: updatedData
             )
             
-            // Refresh posts
-            await fetchPosts()
+            // Refresh videos
+            await fetchVideos()
         } catch {
-            print("Error liking post: \(error.localizedDescription)")
+            print("Error liking video: \(error.localizedDescription)")
         }
     }
 }
@@ -83,16 +105,16 @@ struct FeedView: View {
             ZStack {
                 if viewModel.isLoading {
                     ProgressView()
-                } else if viewModel.posts.isEmpty {
-                    Text("No posts yet")
+                } else if viewModel.videos.isEmpty {
+                    Text("No videos yet")
                         .foregroundColor(.gray)
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
-                            ForEach(viewModel.posts) { post in
-                                PostCell(post: post) {
+                            ForEach(viewModel.videos) { video in
+                                VideoCell(video: video) {
                                     Task {
-                                        await viewModel.likePost(post)
+                                        await viewModel.likeVideo(video)
                                     }
                                 }
                             }
@@ -103,23 +125,28 @@ struct FeedView: View {
             }
             .navigationTitle("Feed")
             .task {
-                await viewModel.fetchPosts()
+                await viewModel.fetchVideos()
             }
             .refreshable {
-                await viewModel.fetchPosts()
+                await viewModel.fetchVideos()
             }
         }
     }
 }
 
-struct PostCell: View {
-    let post: Post
+struct VideoCell: View {
+    let video: Video
     let onLike: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Title
+            Text(video.title)
+                .font(.headline)
+                .lineLimit(1)
+            
             // Thumbnail
-            AsyncImage(url: URL(string: post.thumbnailUrl)) { image in
+            AsyncImage(url: URL(string: video.thumbnailUrl)) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -130,8 +157,13 @@ struct PostCell: View {
             .frame(height: 200)
             .clipped()
             
+            // Author
+            Text(video.author)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            
             // Caption
-            Text(post.caption)
+            Text(video.caption)
                 .font(.body)
                 .lineLimit(2)
             
@@ -140,22 +172,23 @@ struct PostCell: View {
                 Button(action: onLike) {
                     HStack {
                         Image(systemName: "heart")
-                        Text("\(post.likes)")
+                        Text("\(video.likes)")
                     }
                 }
                 
                 HStack {
                     Image(systemName: "message")
-                    Text("\(post.comments)")
+                    Text("\(video.comments)")
                 }
                 
                 HStack {
                     Image(systemName: "square.and.arrow.up")
-                    Text("\(post.shares)")
+                    Text("\(video.shares)")
                 }
             }
             .foregroundColor(.gray)
         }
+        .padding()
         .background(Color.white)
         .cornerRadius(12)
         .shadow(radius: 2)

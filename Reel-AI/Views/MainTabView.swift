@@ -1,5 +1,5 @@
 import SwiftUI
-import AppWrite
+import Appwrite
 
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
