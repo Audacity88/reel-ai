@@ -17,9 +17,28 @@ let package = Package(
                 .product(name: "Appwrite", package: "sdk-for-apple")
             ],
             path: "Reel-AI",
+            exclude: ["Info.plist"],
+            sources: [
+                ".",
+                "Views",
+                "Models",
+                "Controllers",
+                "Services",
+                "ViewModels",
+                "Config"
+            ],
             resources: [
                 .process("Preview Content"),
-                .process("Assets.xcassets")
+                .process("Assets.xcassets"),
+                .copy("Info.plist")
+            ],
+            swiftSettings: [
+                .define("DEBUG", .when(configuration: .debug)),
+                .define("RELEASE", .when(configuration: .release))
+            ],
+            linkerSettings: [
+                .linkedFramework("UIKit"),
+                .linkedFramework("SwiftUI")
             ]
         ),
         .testTarget(
