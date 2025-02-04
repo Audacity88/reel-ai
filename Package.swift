@@ -9,7 +9,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/appwrite/sdk-for-apple", from: "4.0.0"),
-        .package(url: "https://github.com/muxinc/mux-stats-sdk-avplayer.git", from: "3.1.0")
+        .package(url: "https://github.com/muxinc/mux-stats-sdk-avplayer.git", from: "3.1.0"),
+        .package(url: "https://github.com/Flight-School/AnyCodable", from: "0.6.7"),
     ],
     targets: [
         .executableTarget(

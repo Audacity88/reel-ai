@@ -1,14 +1,17 @@
 import Foundation
 import Appwrite
+import AppwriteModels
+import AnyCodable
 
-class AppWriteManager: ObservableObject {
+public class AppWriteManager: ObservableObject {
     static let shared = AppWriteManager()
     
-    let client: Client
-    let account: Account
-    let database: Databases
-    let storage: Storage
-    let realtime: Realtime
+    var client: Client
+    var account: Account
+    var database: Databases
+    var storage: Storage
+    var realtime: Realtime
+    var functions: Functions
     
     // Replace these with your AppWrite project details
     private let endpoint = "YOUR_APPWRITE_ENDPOINT"
@@ -24,6 +27,7 @@ class AppWriteManager: ObservableObject {
         database = Databases(client)
         storage = Storage(client)
         realtime = Realtime(client)
+        functions = Functions(client)
     }
     
     // MARK: - Authentication
@@ -48,7 +52,7 @@ class AppWriteManager: ObservableObject {
         try await account.deleteSession(sessionId: session.$id)
     }
     
-    func getCurrentUser() async throws -> Account.User {
+    func getCurrentUser() async throws -> User {
         return try await account.get()
     }
     
@@ -59,7 +63,7 @@ class AppWriteManager: ObservableObject {
         collectionId: String,
         documentId: String,
         data: [String: Any]
-    ) async throws -> Document {
+    ) async throws -> Document<[String: AnyCodable]> {
         return try await database.createDocument(
             databaseId: databaseId,
             collectionId: collectionId,
@@ -72,7 +76,7 @@ class AppWriteManager: ObservableObject {
         databaseId: String,
         collectionId: String,
         documentId: String
-    ) async throws -> Document {
+    ) async throws -> Document<[String: AnyCodable]> {
         return try await database.getDocument(
             databaseId: databaseId,
             collectionId: collectionId,
@@ -85,7 +89,7 @@ class AppWriteManager: ObservableObject {
         collectionId: String,
         documentId: String,
         data: [String: Any]
-    ) async throws -> Document {
+    ) async throws -> Document<[String: AnyCodable]> {
         return try await database.updateDocument(
             databaseId: databaseId,
             collectionId: collectionId,
@@ -110,7 +114,7 @@ class AppWriteManager: ObservableObject {
         databaseId: String,
         collectionId: String,
         queries: [String]? = nil
-    ) async throws -> DocumentList {
+    ) async throws -> DocumentList<[String: AnyCodable]> {
         return try await database.listDocuments(
             databaseId: databaseId,
             collectionId: collectionId,
@@ -123,7 +127,7 @@ class AppWriteManager: ObservableObject {
     func uploadFile(
         bucketId: String,
         fileId: String,
-        file: File
+        file: InputFile
     ) async throws -> Storage.File {
         return try await storage.createFile(
             bucketId: bucketId,
@@ -152,13 +156,34 @@ class AppWriteManager: ObservableObject {
         )
     }
     
+    // MARK: - Functions
+    
+    func executeFunction(
+        functionId: String,
+        data: [String: Any]
+    ) async throws -> Execution {
+        return try await functions.createExecution(
+            functionId: functionId,
+            data: data
+        )
+    }
+    
+    func initialize(client: Client) {
+        self.client = client
+        self.account = Account(client)
+        self.database = Databases(client)
+        self.storage = Storage(client)
+        self.realtime = Realtime(client)
+        self.functions = Functions(client)
+    }
+    
     // MARK: - Realtime
     
     func subscribe(
-        channels: [String],
+        channel: String,
         callback: @escaping (RealtimeMessage) -> Void
     ) -> RealtimeSubscription {
-        return realtime.subscribe(channels) { message in
+        return realtime.subscribe([channel]) { message in
             callback(message)
         }
     }

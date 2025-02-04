@@ -29,6 +29,7 @@ class NotificationService {
             "createdAt": Date().timeIntervalSince1970
         ]
         
+        // Create notification document in database
         try await appWrite.createDocument(
             databaseId: AppWriteConstants.databaseId,
             collectionId: AppWriteConstants.Collections.notifications,
@@ -43,10 +44,15 @@ class NotificationService {
             "body": body
         ]
         
-        try await appWrite.createExecution(
-            functionId: "sendPushNotification", // Replace with your function ID
+        // Execute function and store result
+        let execution = try await appWrite.executeFunction(
+            functionId: "sendPushNotification",
             data: payload
         )
+        
+        // Check execution status
+        if execution.status != "completed" {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to send push notification"])
+        }
     }
 }
-

@@ -3,7 +3,7 @@ import Appwrite
 
 class AuthViewModel: ObservableObject {
     @Published var userSession: Session?
-    @Published var currentUser: Account.User?
+    @Published var currentUser: User?
     @Published var isLoading = false
     @Published var error: Error?
     
@@ -85,4 +85,3 @@ class AuthViewModel: ObservableObject {
         }
     }
 }
-

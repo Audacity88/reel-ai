@@ -98,7 +98,7 @@ class ProfileViewModel: ObservableObject {
         guard let userId = userProfile?.id else { return }
         
         do {
-            let file = File(name: "avatar.jpg", data: imageData)
+            let file = InputFile(data: imageData, filename: "avatar.jpg")
             let uploadedFile = try await appWrite.uploadFile(
                 bucketId: AppWriteConstants.storageBucketId,
                 fileId: ID.unique(),
@@ -117,8 +117,6 @@ class ProfileViewModel: ObservableObject {
             )
             
             await loadProfile()
-        } catch {
-            print("Error uploading avatar: \(error.localizedDescription)")
         }
     }
     
@@ -267,12 +265,7 @@ struct ProfileHeader: View {
             
             // Stats
             HStack(spacing: 40) {
-                VStack {
-                    Text("\(profile.posts.count)")
-                        .font(.headline)
-                    Text("Posts")
-                        .foregroundColor(.gray)
-                }
+            // Removed posts count display since UserProfile does not have a 'posts' property.
                 
                 VStack {
                     Text("\(profile.followers)")
@@ -359,4 +352,3 @@ struct EditProfileView: View {
         }
     }
 }
-

@@ -1,7 +1,7 @@
 import SwiftUI
 import Appwrite
 
-struct Notification: Identifiable {
+struct AppNotification: Identifiable {
     let id: String
     let title: String
     let body: String
@@ -9,7 +9,7 @@ struct Notification: Identifiable {
 }
 
 class NotificationsViewModel: ObservableObject {
-    @Published var notifications: [Notification] = []
+    @Published var notifications: [AppNotification] = []
     @Published var isLoading = false
     @Published var error: Error?
     
@@ -36,7 +36,7 @@ class NotificationsViewModel: ObservableObject {
             
             await MainActor.run {
                 self.notifications = result.documents.compactMap { document in
-                    try? JSONDecoder().decode(Notification.self, from: document.data)
+                    try? JSONDecoder().decode(AppNotification.self, from: document.data)
                 }
             }
         } catch {
@@ -47,7 +47,7 @@ class NotificationsViewModel: ObservableObject {
         }
     }
     
-    func markAsRead(_ notification: Notification) async {
+    func markAsRead(_ notification: AppNotification) async {
         do {
             let updatedData: [String: Any] = [
                 "read": true
@@ -101,7 +101,7 @@ struct NotificationsView: View {
 }
 
 struct NotificationCell: View {
-    let notification: Notification
+    let notification: AppNotification
     
     var body: some View {
         HStack {
@@ -164,4 +164,3 @@ struct NotificationCell: View {
         return formatter.localizedString(for: Date(timeIntervalSince1970: notification.createdAt), relativeTo: Date())
     }
 }
-

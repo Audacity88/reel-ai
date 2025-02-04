@@ -14,6 +14,7 @@ targets:
     sources:
       - path: Reel-AI
         excludes:
+          - "AnyCodable.swift"
           - "*.md"
     settings:
       base:

@@ -86,14 +86,14 @@ struct Like: Codable, Identifiable {
 }
 
 // MARK: - Notification
-struct Notification: Codable, Identifiable {
+struct AppNotificationModel: Codable, Identifiable {
     let id: String
     let userId: String
     let type: NotificationType
     let targetId: String // postId, userId, or commentId depending on type
     let createdAt: TimeInterval
     var read: Bool
-    
+
     enum CodingKeys: String, CodingKey {
         case id = "$id"
         case userId
@@ -109,6 +109,7 @@ enum NotificationType: String, Codable {
     case comment
     case follow
     case mention
+    case system
 }
 
 // MARK: - AppWrite Constants
@@ -136,6 +137,13 @@ struct AppWriteConstants {
         static func limit(_ count: Int) -> String {
             return "limit(\(count))"
         }
+        
+        static func greaterThan(field: String, value: Double) -> String {
+            return "greater(\"\(field)\", [\"\(value)\"])"
+        }
+        
+        static func lessThanEqual(field: String, value: Double) -> String {
+            return "lessThanEqual(\"\(field)\", [\"\(value)\"])"
+        }
     }
 }
-
