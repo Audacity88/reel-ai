@@ -7,6 +7,27 @@ packages:
   Appwrite:
     url: https://github.com/appwrite/sdk-for-apple
     from: 4.0.0
+  AnyCodable:
+    url: https://github.com/Flight-School/AnyCodable
+    from: 0.6.7
+  MuxSDK:
+    url: https://github.com/muxinc/mux-stats-sdk-avplayer.git
+    from: 3.1.0
+schemes:
+  Reel-AI:
+    build:
+      targets:
+        Reel-AI: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
 targets:
   Reel-AI:
     type: application
@@ -24,4 +45,8 @@ targets:
         TARGETED_DEVICE_FAMILY: 1,2
     dependencies:
       - package: Appwrite
-        product: Appwrite 
+        product: Appwrite
+      - package: AnyCodable
+        product: AnyCodable
+      - package: MuxSDK
+        product: MUXSDKStats

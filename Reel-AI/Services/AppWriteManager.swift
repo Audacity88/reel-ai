@@ -64,11 +64,12 @@ public class AppWriteManager: ObservableObject {
         documentId: String,
         data: [String: Any]
     ) async throws -> Document<[String: AnyCodable]> {
+        let codableData = data.mapValues { AnyCodable($0) }
         return try await database.createDocument(
             databaseId: databaseId,
             collectionId: collectionId,
             documentId: documentId,
-            data: data
+            data: codableData
         )
     }
     
@@ -90,11 +91,12 @@ public class AppWriteManager: ObservableObject {
         documentId: String,
         data: [String: Any]
     ) async throws -> Document<[String: AnyCodable]> {
+        let codableData = data.mapValues { AnyCodable($0) }
         return try await database.updateDocument(
             databaseId: databaseId,
             collectionId: collectionId,
             documentId: documentId,
-            data: data
+            data: codableData
         )
     }
     
