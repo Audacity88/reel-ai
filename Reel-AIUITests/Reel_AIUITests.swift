@@ -1,5 +1,5 @@
 //
-//  Reel_AIUITests.swift
+//  Reel-AIUITests.swift
 //  Reel-AIUITests
 //
 //  Created by Daniel Gilles on 2/3/25.
@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class Reel_AIUITests: XCTestCase {
+final class Reel-AIUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

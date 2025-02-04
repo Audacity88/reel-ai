@@ -1,5 +1,5 @@
 //
-//  Reel_AIUITestsLaunchTests.swift
+//  Reel-AIUITestsLaunchTests.swift
 //  Reel-AIUITests
 //
 //  Created by Daniel Gilles on 2/3/25.
@@ -7,7 +7,7 @@
 
 import XCTest
 
-final class Reel_AIUITestsLaunchTests: XCTestCase {
+final class Reel-AIUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true
