@@ -12,7 +12,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "Reel-AI",
+            name: "Reel_AI",
             dependencies: [
                 .product(name: "Appwrite", package: "sdk-for-apple")
             ],
@@ -24,7 +24,7 @@ let package = Package(
         ),
         .testTarget(
             name: "Reel-AITests",
-            dependencies: ["Reel-AI"],
+            dependencies: ["Reel_AI"],
             path: "Reel-AITests"
         )
     ]
