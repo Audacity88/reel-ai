@@ -1,6 +1,6 @@
 import SwiftUI
 import Charts
-import FirebaseFirestore
+import AppWrite
 
 // MARK: - Data Models
 struct MetricData: Identifiable {
@@ -17,66 +17,109 @@ class MetricsViewModel: ObservableObject {
     @Published var viewsData: [MetricData] = []
     @Published var likesData: [MetricData] = []
     @Published var followersData: [MetricData] = []
+    @Published var isLoading = false
+    @Published var error: Error?
     
-    private var db = Firestore.firestore()
+    private let appWrite = AppWriteManager.shared
     
-    func fetchMetrics(for userId: String? = nil) {
-        if let userId = userId {
-            fetchTotalMetrics(for: userId)
-            fetchHistoricalData(for: userId)
+    func fetchMetrics(for userId: String? = nil) async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let currentUserId = userId ?? (try await appWrite.getCurrentUser()?.$id)
+            guard let userId = currentUserId else { return }
+            
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await self.fetchTotalMetrics(for: userId) }
+                group.addTask { await self.fetchHistoricalData(for: userId) }
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                print("Error fetching metrics: \(error.localizedDescription)")
+            }
         }
     }
     
-    private func fetchTotalMetrics(for userId: String) {
-        db.collection("users").document(userId).getDocument { [weak self] document, error in
-            guard let document = document, document.exists, let data = document.data() else {
-                print("Error fetching user metrics: \(error?.localizedDescription ?? "Unknown error")")
-                return
+    private func fetchTotalMetrics(for userId: String) async {
+        do {
+            let userDoc = try await appWrite.getDocument(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.users,
+                documentId: userId
+            )
+            
+            if let userProfile = try? JSONDecoder().decode(UserProfile.self, from: userDoc.data) {
+                await MainActor.run {
+                    self.totalFollowers = userProfile.followers
+                }
             }
             
-            DispatchQueue.main.async {
-                self?.totalViews = data["totalViews"] as? Int ?? 0
-                self?.totalLikes = data["totalLikes"] as? Int ?? 0
-                self?.totalFollowers = (data["followers"] as? [String])?.count ?? 0
+            // Fetch total views and likes from posts
+            let postsQueries = [
+                AppWriteConstants.Queries.equalTo(field: "userId", value: userId)
+            ]
+            
+            let postsResult = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.posts,
+                queries: postsQueries
+            )
+            
+            let posts = postsResult.documents.compactMap { document -> Post? in
+                try? JSONDecoder().decode(Post.self, from: document.data)
             }
+            
+            let totalViews = posts.reduce(0) { $0 + $1.views }
+            let totalLikes = posts.reduce(0) { $0 + $1.likes }
+            
+            await MainActor.run {
+                self.totalViews = totalViews
+                self.totalLikes = totalLikes
+            }
+        } catch {
+            print("Error fetching total metrics: \(error.localizedDescription)")
         }
     }
     
-    private func fetchHistoricalData(for userId: String) {
-        let calendar = Calendar.current
-        let endDate = Date()
-        let startDate = calendar.date(byAdding: .day, value: -30, to: endDate)!
-        
-        db.collection("users").document(userId).collection("dailyMetrics")
-            .whereField("date", isGreaterThan: startDate)
-            .whereField("date", isLessThanOrEqualTo: endDate)
-            .order(by: "date")
-            .getDocuments { [weak self] querySnapshot, error in
-                guard let documents = querySnapshot?.documents else {
-                    print("Error fetching historical data: \(error?.localizedDescription ?? "Unknown error")")
-                    return
+    private func fetchHistoricalData(for userId: String) async {
+        do {
+            let calendar = Calendar.current
+            let endDate = Date()
+            let startDate = calendar.date(byAdding: .day, value: -30, to: endDate)!
+            
+            let queries = [
+                AppWriteConstants.Queries.equalTo(field: "userId", value: userId),
+                AppWriteConstants.Queries.greaterThan(field: "createdAt", value: startDate.timeIntervalSince1970),
+                AppWriteConstants.Queries.lessThanEqual(field: "createdAt", value: endDate.timeIntervalSince1970),
+                AppWriteConstants.Queries.orderByCreatedAt()
+            ]
+            
+            let result = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: "dailyMetrics",
+                queries: queries
+            )
+            
+            let metrics = result.documents.compactMap { document -> (date: Date, views: Int, likes: Int, followers: Int)? in
+                guard let createdAt = document.data["createdAt"] as? TimeInterval,
+                      let views = document.data["views"] as? Int,
+                      let likes = document.data["likes"] as? Int,
+                      let followers = document.data["followers"] as? Int else {
+                    return nil
                 }
-                
-                DispatchQueue.main.async {
-                    self?.viewsData = documents.compactMap { doc -> MetricData? in
-                        guard let date = (doc["date"] as? Timestamp)?.dateValue(),
-                              let views = doc["views"] as? Int else { return nil }
-                        return MetricData(date: date, value: views)
-                    }
-                    
-                    self?.likesData = documents.compactMap { doc -> MetricData? in
-                        guard let date = (doc["date"] as? Timestamp)?.dateValue(),
-                              let likes = doc["likes"] as? Int else { return nil }
-                        return MetricData(date: date, value: likes)
-                    }
-                    
-                    self?.followersData = documents.compactMap { doc -> MetricData? in
-                        guard let date = (doc["date"] as? Timestamp)?.dateValue(),
-                              let followers = doc["followers"] as? Int else { return nil }
-                        return MetricData(date: date, value: followers)
-                    }
-                }
+                return (Date(timeIntervalSince1970: createdAt), views, likes, followers)
             }
+            
+            await MainActor.run {
+                self.viewsData = metrics.map { MetricData(date: $0.date, value: $0.views) }
+                self.likesData = metrics.map { MetricData(date: $0.date, value: $0.likes) }
+                self.followersData = metrics.map { MetricData(date: $0.date, value: $0.followers) }
+            }
+        } catch {
+            print("Error fetching historical data: \(error.localizedDescription)")
+        }
     }
 }
 

@@ -1,180 +1,314 @@
 import SwiftUI
-import FirebaseCore
-import FirebaseFirestore
-import FirebaseAuth
+import AppWrite
 
 class ProfileViewModel: ObservableObject {
-    @Published var user: User?
-    @Published var videos: [Video] = []
-    @Published var isCurrentUser = false
-    @Published var isFollowing = false
+    @Published var userProfile: UserProfile?
+    @Published var userPosts: [Post] = []
+    @Published var isLoading = false
+    @Published var error: Error?
     
-    private var db = Firestore.firestore()
+    private let appWrite = AppWriteManager.shared
     
-    func fetchUser(userId: String) {
-        db.collection("users").document(userId).addSnapshotListener { documentSnapshot, error in
-            guard let document = documentSnapshot else {
-                print("Error fetching user: \(error?.localizedDescription ?? "Unknown error")")
-                return
+    func loadProfile(userId: String? = nil) async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            if let userId = userId {
+                // Load specific user's profile
+                let document = try await appWrite.getDocument(
+                    databaseId: AppWriteConstants.databaseId,
+                    collectionId: AppWriteConstants.Collections.users,
+                    documentId: userId
+                )
+                await MainActor.run {
+                    self.userProfile = try? JSONDecoder().decode(UserProfile.self, from: document.data)
+                }
+            } else {
+                // Load current user's profile
+                let currentUser = try await appWrite.getCurrentUser()
+                let document = try await appWrite.getDocument(
+                    databaseId: AppWriteConstants.databaseId,
+                    collectionId: AppWriteConstants.Collections.users,
+                    documentId: currentUser.$id
+                )
+                await MainActor.run {
+                    self.userProfile = try? JSONDecoder().decode(UserProfile.self, from: document.data)
+                }
             }
             
-            self.user = try? document.data(as: User.self)
-            self.isCurrentUser = userId == Auth.auth().currentUser?.uid
-            self.checkFollowStatus()
-        }
-    }
-    
-    func fetchVideos(userId: String) {
-        db.collection("videos")
-            .whereField("authorId", isEqualTo: userId)
-            .order(by: "createdAt", descending: true)
-            .addSnapshotListener { querySnapshot, error in
-                guard let documents = querySnapshot?.documents else {
-                    print("Error fetching videos: \(error?.localizedDescription ?? "Unknown error")")
-                    return
-                }
-                
-                self.videos = documents.compactMap { queryDocumentSnapshot -> Video? in
-                    return try? queryDocumentSnapshot.data(as: Video.self)
-                }
-            }
-    }
-    
-    func checkFollowStatus() {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              let userId = user?.id else { return }
-        
-        db.collection("users").document(currentUserId).getDocument { document, error in
-            if let document = document, document.exists {
-                if let following = document.data()?["following"] as? [String] {
-                    self.isFollowing = following.contains(userId)
-                }
+            await loadUserPosts()
+        } catch {
+            await MainActor.run {
+                self.error = error
+                print("Error loading profile: \(error.localizedDescription)")
             }
         }
     }
     
-    func toggleFollow() {
-        guard let currentUserId = Auth.auth().currentUser?.uid,
-              let userId = user?.id else { return }
+    func loadUserPosts() async {
+        guard let userId = userProfile?.id else { return }
         
-        let currentUserRef = db.collection("users").document(currentUserId)
-        let userRef = db.collection("users").document(userId)
-        
-        if isFollowing {
-            // Unfollow
-            currentUserRef.updateData([
-                "following": FieldValue.arrayRemove([userId])
-            ])
-            userRef.updateData([
-                "followers": FieldValue.arrayRemove([currentUserId])
-            ])
-        } else {
-            // Follow
-            currentUserRef.updateData([
-                "following": FieldValue.arrayUnion([userId])
-            ])
-            userRef.updateData([
-                "followers": FieldValue.arrayUnion([currentUserId])
-            ])
+        do {
+            let queries = [
+                AppWriteConstants.Queries.equalTo(field: "userId", value: userId),
+                AppWriteConstants.Queries.orderByCreatedAt(),
+                AppWriteConstants.Queries.limit(50)
+            ]
             
-            // Send notification to followed user
-            db.collection("users").document(currentUserId).getDocument { document, error in
-                if let document = document, document.exists, let username = document.data()?["username"] as? String {
-                    NotificationService.shared.sendNotification(to: userId, title: "New Follower", body: "\(username) started following you")
+            let result = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.posts,
+                queries: queries
+            )
+            
+            await MainActor.run {
+                self.userPosts = result.documents.compactMap { document in
+                    try? JSONDecoder().decode(Post.self, from: document.data)
                 }
             }
+        } catch {
+            print("Error loading user posts: \(error.localizedDescription)")
         }
+    }
+    
+    func updateProfile(username: String, bio: String) async {
+        guard let userId = userProfile?.id else { return }
         
-        isFollowing.toggle()
+        do {
+            let updatedData: [String: Any] = [
+                "username": username,
+                "bio": bio
+            ]
+            
+            try await appWrite.updateDocument(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.users,
+                documentId: userId,
+                data: updatedData
+            )
+            
+            await loadProfile()
+        } catch {
+            print("Error updating profile: \(error.localizedDescription)")
+        }
+    }
+    
+    func uploadAvatar(_ imageData: Data) async {
+        guard let userId = userProfile?.id else { return }
+        
+        do {
+            let file = File(name: "avatar.jpg", data: imageData)
+            let uploadedFile = try await appWrite.uploadFile(
+                bucketId: AppWriteConstants.storageBucketId,
+                fileId: ID.unique(),
+                file: file
+            )
+            
+            let updatedData: [String: Any] = [
+                "avatarUrl": uploadedFile.url
+            ]
+            
+            try await appWrite.updateDocument(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.users,
+                documentId: userId,
+                data: updatedData
+            )
+            
+            await loadProfile()
+        } catch {
+            print("Error uploading avatar: \(error.localizedDescription)")
+        }
+    }
+    
+    func followUser() async {
+        guard let currentUser = try? await appWrite.getCurrentUser(),
+              let targetUserId = userProfile?.id else { return }
+        
+        do {
+            // Create follow relationship
+            let followData: [String: Any] = [
+                "followerId": currentUser.$id,
+                "followingId": targetUserId,
+                "createdAt": Date().timeIntervalSince1970
+            ]
+            
+            try await appWrite.createDocument(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: "follows",
+                documentId: ID.unique(),
+                data: followData
+            )
+            
+            // Update follower/following counts
+            let updatedFollowerData: [String: Any] = [
+                "followers": (userProfile?.followers ?? 0) + 1
+            ]
+            
+            try await appWrite.updateDocument(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.users,
+                documentId: targetUserId,
+                data: updatedFollowerData
+            )
+            
+            await loadProfile(userId: targetUserId)
+        } catch {
+            print("Error following user: \(error.localizedDescription)")
+        }
     }
 }
 
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
-    let userId: String
+    let userId: String?
+    @State private var isEditingProfile = false
+    @State private var newUsername = ""
+    @State private var newBio = ""
+    
+    init(userId: String? = nil) {
+        self.userId = userId
+    }
     
     var body: some View {
         ScrollView {
-            VStack {
-                ProfileHeaderView(user: viewModel.user, isCurrentUser: viewModel.isCurrentUser, isFollowing: viewModel.isFollowing, toggleFollow: viewModel.toggleFollow)
-                
-                if viewModel.isCurrentUser {
-                    NavigationLink(destination: CreatorMetricsView()) {
-                        Text("View Creator Metrics")
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                    }
-                    .padding(.bottom)
+            VStack(spacing: 20) {
+                // Profile Header
+                if let profile = viewModel.userProfile {
+                    ProfileHeader(
+                        profile: profile,
+                        isCurrentUser: userId == nil,
+                        onFollowTap: {
+                            Task {
+                                await viewModel.followUser()
+                            }
+                        },
+                        onEditTap: {
+                            newUsername = profile.username
+                            newBio = profile.bio ?? ""
+                            isEditingProfile = true
+                        }
+                    )
                 }
                 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 2) {
-                    ForEach(viewModel.videos) { video in
-                        NavigationLink(destination: VideoPlayerView(video: video, viewModel: FeedViewModel())) {
-                            VideoThumbnailView(video: video)
+                // User Posts Grid
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 2) {
+                    ForEach(viewModel.userPosts) { post in
+                        NavigationLink(destination: PostDetailView(post: post)) {
+                            PostThumbnail(post: post)
                         }
                     }
                 }
             }
+            .padding()
         }
-        .onAppear {
-            viewModel.fetchUser(userId: userId)
-            viewModel.fetchVideos(userId: userId)
+        .navigationTitle(viewModel.userProfile?.username ?? "Profile")
+        .task {
+            await viewModel.loadProfile(userId: userId)
+        }
+        .refreshable {
+            await viewModel.loadProfile(userId: userId)
+        }
+        .sheet(isPresented: $isEditingProfile) {
+            EditProfileView(
+                username: $newUsername,
+                bio: $newBio,
+                onSave: {
+                    Task {
+                        await viewModel.updateProfile(
+                            username: newUsername,
+                            bio: newBio
+                        )
+                    }
+                    isEditingProfile = false
+                }
+            )
         }
     }
 }
 
-struct ProfileHeaderView: View {
-    let user: User?
+struct ProfileHeader: View {
+    let profile: UserProfile
     let isCurrentUser: Bool
-    let isFollowing: Bool
-    let toggleFollow: () -> Void
+    let onFollowTap: () -> Void
+    let onEditTap: () -> Void
     
     var body: some View {
-        VStack {
-            if let user = user {
-                AsyncImage(url: URL(string: user.profileImageURL ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 100, height: 100)
-                        .clipShape(Circle())
-                } placeholder: {
-                    Circle()
-                        .fill(Color.gray)
-                        .frame(width: 100, height: 100)
-                }
-                
-                Text(user.username)
+        VStack(spacing: 16) {
+            // Avatar
+            AsyncImage(url: URL(string: profile.avatarUrl ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "person.circle.fill")
+                    .resizable()
+            }
+            .frame(width: 100, height: 100)
+            .clipShape(Circle())
+            
+            // Username and Bio
+            VStack(spacing: 8) {
+                Text(profile.username)
                     .font(.title2)
+                    .bold()
                 
-                HStack {
-                    VStack {
-                        Text("\(user.followers.count)")
-                            .font(.headline)
-                        Text("Followers")
-                            .font(.caption)
-                    }
-                    
-                    VStack {
-                        Text("\(user.following.count)")
-                            .font(.headline)
-                        Text("Following")
-                            .font(.caption)
-                    }
+                if let bio = profile.bio {
+                    Text(bio)
+                        .font(.body)
+                        .foregroundColor(.gray)
                 }
-                .padding()
+            }
+            
+            // Stats
+            HStack(spacing: 40) {
+                VStack {
+                    Text("\(profile.posts.count)")
+                        .font(.headline)
+                    Text("Posts")
+                        .foregroundColor(.gray)
+                }
                 
-                if !isCurrentUser {
-                    Button(action: toggleFollow) {
-                        Text(isFollowing ? "Unfollow" : "Follow")
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
-                            .background(isFollowing ? Color.gray : Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
+                VStack {
+                    Text("\(profile.followers)")
+                        .font(.headline)
+                    Text("Followers")
+                        .foregroundColor(.gray)
+                }
+                
+                VStack {
+                    Text("\(profile.following)")
+                        .font(.headline)
+                    Text("Following")
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Action Button
+            if isCurrentUser {
+                Button(action: onEditTap) {
+                    Text("Edit Profile")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                }
+            } else {
+                Button(action: onFollowTap) {
+                    Text("Follow")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(8)
                 }
             }
         }
@@ -182,20 +316,46 @@ struct ProfileHeaderView: View {
     }
 }
 
-struct VideoThumbnailView: View {
-    let video: Video
+struct PostThumbnail: View {
+    let post: Post
     
     var body: some View {
-        AsyncImage(url: URL(string: video.thumbnailURL)) { image in
+        AsyncImage(url: URL(string: post.thumbnailUrl)) { image in
             image
                 .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(height: 150)
-                .clipped()
+                .aspectRatio(1, contentMode: .fill)
         } placeholder: {
             Rectangle()
-                .fill(Color.gray)
-                .frame(height: 150)
+                .fill(Color.gray.opacity(0.2))
+        }
+        .frame(height: UIScreen.main.bounds.width / 3)
+        .clipped()
+    }
+}
+
+struct EditProfileView: View {
+    @Binding var username: String
+    @Binding var bio: String
+    let onSave: () -> Void
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Profile Information")) {
+                    TextField("Username", text: $username)
+                    TextField("Bio", text: $bio)
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                },
+                trailing: Button("Save") {
+                    onSave()
+                }
+            )
         }
     }
 }

@@ -14,7 +14,7 @@ You are an expert iOS developer using Swift and SwiftUI. Follow these guidelines
 - If you do not know the answer, say so, instead of guessing.
 
 #Crucial Notes
--I am using Cocoapods for dependencies
+-I am using SPM for dependencies
 -I am using SweetPad which is a VSCode/Cursor integrator that replaces many XCode functions for building, so if possible avoid requiring using XCode itself
 -Firebase: DO NOT USE FirebaseFirestoreSwift! Check the documentation for the latest notes on @Firebase iOS. Starting with Firebase 10.17.0, the Swift extension SDKs (like FirebaseFirestoreSwift) have been merged into their main SDKs. Import FirebaseCore not Firebase.
 -Firebase packages to include:

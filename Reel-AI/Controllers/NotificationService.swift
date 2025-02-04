@@ -1,34 +1,52 @@
 import Foundation
-import FirebaseFirestore
-import FirebaseFunctions
+import AppWrite
 
 class NotificationService {
     static let shared = NotificationService()
     private init() {}
     
-    private let db = Firestore.firestore()
-    private let functions = Functions.functions()
+    private let appWrite = AppWriteManager.shared
     
-    func sendNotification(to userId: String, title: String, body: String) {
-        db.collection("users").document(userId).getDocument { (document, error) in
-            if let document = document, document.exists, let fcmToken = document.data()?["fcmToken"] as? String {
-                let message = [
-                    "token": fcmToken,
-                    "notification": [
-                        "title": title,
-                        "body": body
-                    ]
-                ]
-                
-                self.functions.httpsCallable("sendNotification").call(message) { (result, error) in
-                    if let error = error {
-                        print("Error sending notification: \(error.localizedDescription)")
-                    } else {
-                        print("Notification sent successfully")
-                    }
-                }
-            }
+    func sendNotification(to userId: String, title: String, body: String) async throws {
+        // Get user's device token
+        let userDoc = try await appWrite.getDocument(
+            databaseId: AppWriteConstants.databaseId,
+            collectionId: AppWriteConstants.Collections.users,
+            documentId: userId
+        )
+        
+        guard let deviceToken = userDoc.data["deviceToken"] as? String else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No device token found"])
         }
+        
+        // Create notification document
+        let notificationData: [String: Any] = [
+            "userId": userId,
+            "title": title,
+            "body": body,
+            "type": NotificationType.system.rawValue,
+            "read": false,
+            "createdAt": Date().timeIntervalSince1970
+        ]
+        
+        try await appWrite.createDocument(
+            databaseId: AppWriteConstants.databaseId,
+            collectionId: AppWriteConstants.Collections.notifications,
+            documentId: ID.unique(),
+            data: notificationData
+        )
+        
+        // Trigger AppWrite function to send push notification
+        let payload: [String: Any] = [
+            "deviceToken": deviceToken,
+            "title": title,
+            "body": body
+        ]
+        
+        try await appWrite.createExecution(
+            functionId: "sendPushNotification", // Replace with your function ID
+            data: payload
+        )
     }
 }
 

@@ -1,175 +1,76 @@
 import SwiftUI
-import AVKit
-import FirebaseCore
-import FirebaseFirestore
-import FirebaseAuth
+import AppWrite
 
 class FeedViewModel: ObservableObject {
-    @Published var videos: [Video] = []
-    @Published var currentUser: User?
+    @Published var posts: [Post] = []
+    @Published var isLoading = false
+    @Published var error: Error?
     
-    private var db = Firestore.firestore()
+    private let appWrite = AppWriteManager.shared
     
-    init() {
-        fetchVideos()
-        fetchCurrentUser()
-    }
-    
-    func fetchVideos() {
-        db.collection("videos").order(by: "createdAt", descending: true).addSnapshotListener { querySnapshot, error in
-            guard let documents = querySnapshot?.documents else {
-                print("Error fetching videos: \(error?.localizedDescription ?? "Unknown error")")
-                return
-            }
+    func fetchPosts() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let queries = [
+                AppWriteConstants.Queries.orderByCreatedAt(),
+                AppWriteConstants.Queries.limit(50)
+            ]
             
-            self.videos = documents.compactMap { queryDocumentSnapshot -> Video? in
-                return try? queryDocumentSnapshot.data(as: Video.self)
-            }
-        }
-    }
-    
-    func fetchCurrentUser() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        
-        db.collection("users").document(userId).addSnapshotListener { documentSnapshot, error in
-            guard let document = documentSnapshot else {
-                print("Error fetching current user: \(error?.localizedDescription ?? "Unknown error")")
-                return
-            }
+            let result = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.posts,
+                queries: queries
+            )
             
-            self.currentUser = try? document.data(as: User.self)
-        }
-    }
-    
-    func likeVideo(_ video: Video) {
-        guard let videoId = video.id, let userId = currentUser?.id else { return }
-        
-        let videoRef = db.collection("videos").document(videoId)
-        
-        videoRef.updateData([
-            "likes": FieldValue.increment(Int64(1))
-        ]) { error in
-            if let error = error {
-                print("Error liking video: \(error.localizedDescription)")
-            } else {
-                // Send notification to video author
-                NotificationService.shared.sendNotification(to: video.authorId, title: "New Like", body: "\(self.currentUser?.username ?? "Someone") liked your video")
-            }
-        }
-        
-        // Add user to likes subcollection
-        videoRef.collection("likes").document(userId).setData([:])
-    }
-    
-    func addComment(_ text: String, to video: Video) {
-        guard let videoId = video.id, let userId = currentUser?.id else { return }
-        
-        let comment = Comment(id: UUID().uuidString, authorId: userId, text: text, createdAt: Date())
-        
-        let videoRef = db.collection("videos").document(videoId)
-        
-        videoRef.updateData([
-            "comments": FieldValue.arrayUnion([try! Firestore.Encoder().encode(comment)])
-        ]) { error in
-            if let error = error {
-                print("Error adding comment: \(error.localizedDescription)")
-            } else {
-                // Send notification to video author
-                NotificationService.shared.sendNotification(to: video.authorId, title: "New Comment", body: "\(self.currentUser?.username ?? "Someone") commented on your video")
-            }
-        }
-    }
-    
-    func shareVideo(_ video: Video) {
-        // Implement sharing functionality (e.g., using UIActivityViewController)
-        guard let videoURL = URL(string: video.videoURL) else { return }
-        let activityViewController = UIActivityViewController(activityItems: [videoURL], applicationActivities: nil)
-        UIApplication.shared.windows.first?.rootViewController?.present(activityViewController, animated: true, completion: nil)
-    }
-}
-
-struct VideoPlayerView: View {
-    let video: Video
-    @ObservedObject var viewModel: FeedViewModel
-    @State private var player: AVPlayer?
-    @State private var isShowingComments = false
-    @State private var commentText = ""
-    
-    var body: some View {
-        ZStack {
-            if let player = player {
-                VideoPlayer(player: player)
-            } else {
-                ProgressView()
-            }
-            
-            VStack {
-                Spacer()
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(video.authorId) // Replace with author's username when available
-                            .font(.headline)
-                        Text("Description goes here")
-                            .font(.subheadline)
-                    }
-                    Spacer()
-                    VStack(spacing: 20) {
-                        Button(action: { viewModel.likeVideo(video) }) {
-                            Image(systemName: "heart.fill")
-                                .foregroundColor(.red)
-                        }
-                        Button(action: { isShowingComments.toggle() }) {
-                            Image(systemName: "message.fill")
-                                .foregroundColor(.white)
-                        }
-                        Button(action: { viewModel.shareVideo(video) }) {
-                            Image(systemName: "square.and.arrow.up.fill")
-                                .foregroundColor(.white)
-                        }
-                    }
-                }
-                .padding()
-                .background(Color.black.opacity(0.5))
-            }
-        }
-        .onAppear {
-            player = AVPlayer(url: URL(string: video.videoURL)!)
-            player?.play()
-        }
-        .onDisappear {
-            player?.pause()
-            player = nil
-        }
-        .sheet(isPresented: $isShowingComments) {
-            CommentsView(video: video, viewModel: viewModel)
-        }
-    }
-}
-
-struct CommentsView: View {
-    let video: Video
-    @ObservedObject var viewModel: FeedViewModel
-    @State private var commentText = ""
-    
-    var body: some View {
-        VStack {
-            List(video.comments) { comment in
-                VStack(alignment: .leading) {
-                    Text(comment.authorId) // Replace with author's username when available
-                        .font(.headline)
-                    Text(comment.text)
-                        .font(.body)
+            await MainActor.run {
+                self.posts = result.documents.compactMap { document in
+                    try? JSONDecoder().decode(Post.self, from: document.data)
                 }
             }
-            
-            HStack {
-                TextField("Add a comment", text: $commentText)
-                Button("Post") {
-                    viewModel.addComment(commentText, to: video)
-                    commentText = ""
-                }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                print("Error fetching posts: \(error.localizedDescription)")
             }
-            .padding()
+        }
+    }
+    
+    func likePost(_ post: Post) async {
+        guard let currentUser = try? await appWrite.getCurrentUser() else { return }
+        
+        do {
+            // Create a like document
+            let likeData: [String: Any] = [
+                "userId": currentUser.$id,
+                "postId": post.id,
+                "createdAt": Date().timeIntervalSince1970
+            ]
+            
+            try await appWrite.createDocument(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.likes,
+                documentId: ID.unique(),
+                data: likeData
+            )
+            
+            // Update post likes count
+            let updatedData: [String: Any] = [
+                "likes": post.likes + 1
+            ]
+            
+            try await appWrite.updateDocument(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.posts,
+                documentId: post.id,
+                data: updatedData
+            )
+            
+            // Refresh posts
+            await fetchPosts()
+        } catch {
+            print("Error liking post: \(error.localizedDescription)")
         }
     }
 }
@@ -178,15 +79,86 @@ struct FeedView: View {
     @StateObject private var viewModel = FeedViewModel()
     
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(viewModel.videos) { video in
-                    VideoPlayerView(video: video, viewModel: viewModel)
-                        .frame(height: UIScreen.main.bounds.height)
+        NavigationView {
+            ZStack {
+                if viewModel.isLoading {
+                    ProgressView()
+                } else if viewModel.posts.isEmpty {
+                    Text("No posts yet")
+                        .foregroundColor(.gray)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(viewModel.posts) { post in
+                                PostCell(post: post) {
+                                    Task {
+                                        await viewModel.likePost(post)
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                    }
                 }
             }
+            .navigationTitle("Feed")
+            .task {
+                await viewModel.fetchPosts()
+            }
+            .refreshable {
+                await viewModel.fetchPosts()
+            }
         }
-        .edgesIgnoringSafeArea(.all)
+    }
+}
+
+struct PostCell: View {
+    let post: Post
+    let onLike: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Thumbnail
+            AsyncImage(url: URL(string: post.thumbnailUrl)) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+            }
+            .frame(height: 200)
+            .clipped()
+            
+            // Caption
+            Text(post.caption)
+                .font(.body)
+                .lineLimit(2)
+            
+            // Interaction buttons
+            HStack(spacing: 16) {
+                Button(action: onLike) {
+                    HStack {
+                        Image(systemName: "heart")
+                        Text("\(post.likes)")
+                    }
+                }
+                
+                HStack {
+                    Image(systemName: "message")
+                    Text("\(post.comments)")
+                }
+                
+                HStack {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("\(post.shares)")
+                }
+            }
+            .foregroundColor(.gray)
+        }
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(radius: 2)
     }
 }
 

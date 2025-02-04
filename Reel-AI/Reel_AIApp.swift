@@ -1,5 +1,5 @@
 import SwiftUI
-import FirebaseCore
+import AppWrite
 
 @main
 struct Reel_AIApp: App {
@@ -7,7 +7,14 @@ struct Reel_AIApp: App {
     @StateObject private var authViewModel = AuthViewModel()
     
     init() {
-        FirebaseConfig.configure()
+        // Initialize AppWrite client
+        let client = Client()
+            .setEndpoint("YOUR_APPWRITE_ENDPOINT") // Replace with your AppWrite endpoint
+            .setProject("YOUR_PROJECT_ID")         // Replace with your project ID
+            .setSelfSigned(true)                  // Remove in production
+        
+        // Initialize AppWrite manager
+        AppWriteManager.shared.initialize(client: client)
     }
     
     var body: some Scene {

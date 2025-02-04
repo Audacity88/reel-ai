@@ -1,103 +1,160 @@
 import SwiftUI
-import FirebaseCore
-import FirebaseFirestore
+import AppWrite
 
-struct TrendingVideo: Identifiable {
+struct TrendingPost: Identifiable, Codable {
     let id: String
-    let thumbnailURL: String
+    let thumbnailUrl: String
     let views: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "$id"
+        case thumbnailUrl
+        case views
+    }
 }
 
-struct PopularHashtag: Identifiable {
+struct PopularHashtag: Identifiable, Codable {
     let id: String
     let name: String
     let postCount: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "$id"
+        case name
+        case postCount
+    }
 }
 
-struct SuggestedUser: Identifiable {
+struct SuggestedUser: Identifiable, Codable {
     let id: String
     let username: String
-    let profileImageURL: String
-    let followerCount: Int
+    let avatarUrl: String?
+    let followers: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "$id"
+        case username
+        case avatarUrl
+        case followers
+    }
 }
 
 class DiscoverViewModel: ObservableObject {
-    @Published var trendingVideos: [TrendingVideo] = []
+    @Published var trendingPosts: [TrendingPost] = []
     @Published var popularHashtags: [PopularHashtag] = []
     @Published var suggestedUsers: [SuggestedUser] = []
     @Published var searchResults: [Any] = []
+    @Published var isLoading = false
+    @Published var error: Error?
     
-    private var db = Firestore.firestore()
+    private let appWrite = AppWriteManager.shared
     
-    func fetchTrendingVideos() {
-        db.collection("videos")
-            .order(by: "views", descending: true)
-            .limit(to: 9)
-            .getDocuments { (querySnapshot, error) in
-                if let error = error {
-                    print("Error fetching trending videos: \(error.localizedDescription)")
-                    return
+    func fetchTrendingPosts() async {
+        do {
+            let queries = [
+                AppWriteConstants.Queries.orderByCreatedAt(descending: true),
+                AppWriteConstants.Queries.limit(9)
+            ]
+            
+            let result = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.posts,
+                queries: queries
+            )
+            
+            await MainActor.run {
+                self.trendingPosts = result.documents.compactMap { document in
+                    try? JSONDecoder().decode(TrendingPost.self, from: document.data)
                 }
-                
-                self.trendingVideos = querySnapshot?.documents.compactMap { document -> TrendingVideo? in
-                    let data = document.data()
-                    guard let thumbnailURL = data["thumbnailURL"] as? String,
-                          let views = data["views"] as? Int else {
-                        return nil
-                    }
-                    return TrendingVideo(id: document.documentID, thumbnailURL: thumbnailURL, views: views)
-                } ?? []
             }
+        } catch {
+            print("Error fetching trending posts: \(error.localizedDescription)")
+        }
     }
     
-    func fetchPopularHashtags() {
-        db.collection("hashtags")
-            .order(by: "postCount", descending: true)
-            .limit(to: 10)
-            .getDocuments { (querySnapshot, error) in
-                if let error = error {
-                    print("Error fetching popular hashtags: \(error.localizedDescription)")
-                    return
+    func fetchPopularHashtags() async {
+        do {
+            let queries = [
+                AppWriteConstants.Queries.orderByCreatedAt(descending: true),
+                AppWriteConstants.Queries.limit(10)
+            ]
+            
+            let result = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: "hashtags",
+                queries: queries
+            )
+            
+            await MainActor.run {
+                self.popularHashtags = result.documents.compactMap { document in
+                    try? JSONDecoder().decode(PopularHashtag.self, from: document.data)
                 }
-                
-                self.popularHashtags = querySnapshot?.documents.compactMap { document -> PopularHashtag? in
-                    let data = document.data()
-                    guard let name = data["name"] as? String,
-                          let postCount = data["postCount"] as? Int else {
-                        return nil
-                    }
-                    return PopularHashtag(id: document.documentID, name: name, postCount: postCount)
-                } ?? []
             }
+        } catch {
+            print("Error fetching popular hashtags: \(error.localizedDescription)")
+        }
     }
     
-    func fetchSuggestedUsers() {
-        db.collection("users")
-            .order(by: "followerCount", descending: true)
-            .limit(to: 5)
-            .getDocuments { (querySnapshot, error) in
-                if let error = error {
-                    print("Error fetching suggested users: \(error.localizedDescription)")
-                    return
+    func fetchSuggestedUsers() async {
+        do {
+            let queries = [
+                AppWriteConstants.Queries.orderByCreatedAt(descending: true),
+                AppWriteConstants.Queries.limit(5)
+            ]
+            
+            let result = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.users,
+                queries: queries
+            )
+            
+            await MainActor.run {
+                self.suggestedUsers = result.documents.compactMap { document in
+                    try? JSONDecoder().decode(SuggestedUser.self, from: document.data)
                 }
-                
-                self.suggestedUsers = querySnapshot?.documents.compactMap { document -> SuggestedUser? in
-                    let data = document.data()
-                    guard let username = data["username"] as? String,
-                          let profileImageURL = data["profileImageURL"] as? String,
-                          let followerCount = data["followerCount"] as? Int else {
-                        return nil
-                    }
-                    return SuggestedUser(id: document.documentID, username: username, profileImageURL: profileImageURL, followerCount: followerCount)
-                } ?? []
             }
+        } catch {
+            print("Error fetching suggested users: \(error.localizedDescription)")
+        }
     }
     
-    func search(query: String) {
-        // Implement search functionality here
-        // This could search for users, videos, and hashtags
-        // For now, we'll just print the query
-        print("Searching for: \(query)")
+    func search(query: String) async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let queries = [
+                AppWriteConstants.Queries.limit(20)
+            ]
+            
+            // Search users
+            let usersResult = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.users,
+                queries: queries
+            )
+            
+            let users = usersResult.documents.compactMap { document -> SuggestedUser? in
+                try? JSONDecoder().decode(SuggestedUser.self, from: document.data)
+            }
+            
+            // Search posts
+            let postsResult = try await appWrite.listDocuments(
+                databaseId: AppWriteConstants.databaseId,
+                collectionId: AppWriteConstants.Collections.posts,
+                queries: queries
+            )
+            
+            let posts = postsResult.documents.compactMap { document -> Post? in
+                try? JSONDecoder().decode(Post.self, from: document.data)
+            }
+            
+            await MainActor.run {
+                self.searchResults = users + posts
+            }
+        } catch {
+            print("Error searching: \(error.localizedDescription)")
+        }
     }
 }
 
@@ -110,86 +167,88 @@ struct DiscoverView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     SearchBar(text: $searchText, onSearchButtonClicked: {
-                        viewModel.search(query: searchText)
+                        Task {
+                            await viewModel.search(query: searchText)
+                        }
                     })
                     
-                    TrendingVideosSection(videos: viewModel.trendingVideos)
-                    
-                    PopularHashtagsSection(hashtags: viewModel.popularHashtags)
-                    
-                    SuggestedUsersSection(users: viewModel.suggestedUsers)
+                    if !searchText.isEmpty {
+                        SearchResultsView(results: viewModel.searchResults)
+                    } else {
+                        TrendingPostsSection(posts: viewModel.trendingPosts)
+                        PopularHashtagsSection(hashtags: viewModel.popularHashtags)
+                        SuggestedUsersSection(users: viewModel.suggestedUsers)
+                    }
                 }
                 .padding()
             }
             .navigationTitle("Discover")
-        }
-        .onAppear {
-            viewModel.fetchTrendingVideos()
-            viewModel.fetchPopularHashtags()
-            viewModel.fetchSuggestedUsers()
+            .task {
+                await viewModel.fetchTrendingPosts()
+                await viewModel.fetchPopularHashtags()
+                await viewModel.fetchSuggestedUsers()
+            }
+            .refreshable {
+                await viewModel.fetchTrendingPosts()
+                await viewModel.fetchPopularHashtags()
+                await viewModel.fetchSuggestedUsers()
+            }
         }
     }
 }
 
 struct SearchBar: View {
     @Binding var text: String
-    var onSearchButtonClicked: () -> Void
+    let onSearchButtonClicked: () -> Void
     
     var body: some View {
         HStack {
             TextField("Search", text: $text)
-                .padding(7)
-                .padding(.horizontal, 25)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-                .overlay(
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-                            .padding(.leading, 8)
-                    }
-                )
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .onSubmit(onSearchButtonClicked)
             
             Button(action: onSearchButtonClicked) {
-                Text("Search")
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.blue)
             }
         }
     }
 }
 
-struct TrendingVideosSection: View {
-    let videos: [TrendingVideo]
+struct TrendingPostsSection: View {
+    let posts: [TrendingPost]
     
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Trending Videos")
-                .font(.headline)
+            Text("Trending")
+                .font(.title2)
+                .bold()
             
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                ForEach(videos) { video in
-                    AsyncImage(url: URL(string: video.thumbnailURL)) { image in
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 8) {
+                ForEach(posts) { post in
+                    AsyncImage(url: URL(string: post.thumbnailUrl)) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(height: 120)
-                            .cornerRadius(8)
-                            .overlay(
-                                Text("\(video.views) views")
-                                    .font(.caption)
-                                    .padding(4)
-                                    .background(Color.black.opacity(0.7))
-                                    .foregroundColor(.white)
-                                    .cornerRadius(4)
-                                    .padding(4),
-                                alignment: .bottomTrailing
-                            )
                     } placeholder: {
                         Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 120)
-                            .cornerRadius(8)
+                            .fill(Color.gray.opacity(0.2))
                     }
+                    .frame(height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        Text("\(post.views) views")
+                            .font(.caption)
+                            .padding(4)
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(4)
+                            .padding(4),
+                        alignment: .bottomTrailing
+                    )
                 }
             }
         }
@@ -202,22 +261,22 @@ struct PopularHashtagsSection: View {
     var body: some View {
         VStack(alignment: .leading) {
             Text("Popular Hashtags")
-                .font(.headline)
+                .font(.title2)
+                .bold()
             
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     ForEach(hashtags) { hashtag in
                         VStack {
                             Text("#\(hashtag.name)")
-                                .font(.subheadline)
+                                .font(.headline)
                             Text("\(hashtag.postCount) posts")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(20)
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
                     }
                 }
             }
@@ -231,46 +290,95 @@ struct SuggestedUsersSection: View {
     var body: some View {
         VStack(alignment: .leading) {
             Text("Suggested Users")
-                .font(.headline)
+                .font(.title2)
+                .bold()
             
             ForEach(users) { user in
                 HStack {
-                    AsyncImage(url: URL(string: user.profileImageURL)) { image in
+                    AsyncImage(url: URL(string: user.avatarUrl ?? "")) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(width: 50, height: 50)
-                            .clipShape(Circle())
                     } placeholder: {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 50, height: 50)
+                        Image(systemName: "person.circle.fill")
+                            .resizable()
                     }
+                    .frame(width: 50, height: 50)
+                    .clipShape(Circle())
                     
                     VStack(alignment: .leading) {
                         Text(user.username)
-                            .font(.subheadline)
-                        Text("\(user.followerCount) followers")
+                            .font(.headline)
+                        Text("\(user.followers) followers")
                             .font(.caption)
                             .foregroundColor(.gray)
                     }
                     
                     Spacer()
                     
-                    Button(action: {
-                        // Follow user action
-                    }) {
+                    Button(action: {}) {
                         Text("Follow")
                             .font(.subheadline)
-                            .fontWeight(.semibold)
                             .foregroundColor(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(Color.blue)
-                            .cornerRadius(20)
+                            .cornerRadius(16)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 8)
+            }
+        }
+    }
+}
+
+struct SearchResultsView: View {
+    let results: [Any]
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("Search Results")
+                .font(.title2)
+                .bold()
+            
+            ForEach(0..<results.count, id: \.self) { index in
+                if let user = results[index] as? SuggestedUser {
+                    NavigationLink(destination: ProfileView(userId: user.id)) {
+                        HStack {
+                            AsyncImage(url: URL(string: user.avatarUrl ?? "")) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                            }
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                            
+                            Text(user.username)
+                                .font(.headline)
+                        }
+                    }
+                } else if let post = results[index] as? Post {
+                    NavigationLink(destination: PostDetailView(post: post)) {
+                        HStack {
+                            AsyncImage(url: URL(string: post.thumbnailUrl)) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.2))
+                            }
+                            .frame(width: 60, height: 60)
+                            .cornerRadius(8)
+                            
+                            Text(post.caption)
+                                .lineLimit(2)
+                        }
+                    }
+                }
             }
         }
     }
