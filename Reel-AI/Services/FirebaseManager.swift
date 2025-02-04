@@ -36,8 +36,8 @@ class FirebaseManager {
             }
             
             do {
-                if let data = snapshot?.data(),
-                   let user = try Firestore.Decoder().decode(User.self, from: data) {
+                if let data = snapshot?.data() {
+                    let user = try Firestore.Decoder().decode(User.self, from: data)
                     completion(.success(user))
                 } else {
                     completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode user"])))
@@ -99,8 +99,8 @@ class FirebaseManager {
             }
             
             do {
-                if let data = snapshot?.data(),
-                   let user = try Firestore.Decoder().decode(User.self, from: data) {
+                if let data = snapshot?.data() {
+                    let user = try Firestore.Decoder().decode(User.self, from: data)
                     completion(.success(user))
                 } else {
                     completion(.success(nil))
